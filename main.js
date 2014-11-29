@@ -1,27 +1,65 @@
-var page = require('webpage').create();
-var config = require('./config');
+var fs = require('fs');
+var spawn = require('child_process').spawn;
+var chalk = require('chalk');
 
-function processLinks(links) {
-  var jobs = [].concat(links);
-  console.log('jobs', jobs.length);
-  while (jobs.length > 0) {
-    var job = jobs.pop();
-    console.log('My job now is', job.descriptor, job.link);
+var downloadedFiles;
+
+function isDownloaded (filename) {
+  for (var i = 0; i < downloadedFiles.length; i++) {
+    var downloadedFile = downloadedFiles[i];
+    if (downloadedFile.indexOf(filename) !== -1) {
+      return true;
+    }
   }
-  if (jobs.length === 0) {
-    phantom.exit();
+  return false;
+}
+
+function handleJob(job) {
+  console.log(
+    chalk.yellow('handling'),
+    job.descriptor
+  );
+  if (!isDownloaded(job.descriptor)) {
+    console.log(chalk.yellow('file not downloaded yet. getting now.'));
+    var newLink = job.link.replace('view', 'download');
+    var curl = spawn('curl', [newLink, '-o', './downloads/' + job.descriptor + '.torrent']);
+  } else {
+    console.log(chalk.green('file previously downloaded.'));
   }
 }
 
-page.open(config.url, function () {
-  var links = page.evaluate(function (selector) {
-    var nodes = document.querySelectorAll(selector);
-    return Array.prototype.map.call(nodes, function (a) {
-      return {
-        descriptor: a.innerHTML,
-        link: a.href
+function processOutput(output) {
+  var newDownloads = [];
+  console.log(chalk.green('beginning output processing'));
+  var lines = output.split('\n');
+  lines.forEach(function (a) {
+    if (a.length > 1) {
+      var job = JSON.parse(a);
+      var jobResult = handleJob(job);
+      if (jobResult) {
+        newDownloads.push(jobResult);
       }
+    }
+  });
+  console.log(chalk.green('processing finished'));
+  if (newDownloads.length > 0) {
+    console.log(chalk.green('New Files downloaded:'));
+    newDownloads.foreach(function (a) {
+      console.log(chalk.green(a));
     });
-  }, config.selector);
-  processLinks(links);
+    console.log(chalk.green('See ./downloads'));
+  }
+}
+
+downloadedFiles = fs.readdirSync('./downloads');
+console.log(chalk.green('fetching URLs'));
+var output = '';
+var path = __dirname + '/phantom/getUrls.js';
+var getUrls = spawn('phantomjs', [path]);
+getUrls.stdout.on('data', function (data) {
+  output += data;
+});
+getUrls.on('close', function () {
+  console.log(chalk.green('fetching finished'));
+  processOutput(output);
 });

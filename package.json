@@ -4,12 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "phantomjs main.js",
+    "start": "node main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Justin Woo",
   "license": "MIT",
   "dependencies": {
+    "chalk": "^0.5.1",
     "phantomjs": "^1.9.12"
   }
 }

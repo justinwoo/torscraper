@@ -32,7 +32,7 @@ function processOutput(output) {
   var newDownloads = [];
   console.log(chalk.green('beginning output processing'));
   var lines = output.split('\n');
-  lines.forEach(function (a) {
+  lines.reverse().forEach(function (a) {
     if (a.length > 1) {
       var job = JSON.parse(a);
       var jobResult = handleJob(job);

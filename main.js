@@ -44,15 +44,17 @@ function processOutput(output) {
     }
   });
   console.log(chalk.green('processing finished'));
+  console.log();
   if (newDownloads.length > 0) {
     console.log(chalk.yellow('New Files downloaded:'));
     newDownloads.forEach(function (a) {
-      console.log(a);
+      console.log(a + '.torrent');
     });
     console.log(chalk.green('See', downloadDir));
   } else {
     console.log(chalk.yellow('Nothing new.'));
   }
+  console.log();
   console.log(chalk.yellow('Previous:'));
   var j = 10;
   for (var i = 1; i < j; i++) {

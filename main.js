@@ -2,6 +2,7 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 var chalk = require('chalk');
 
+var downloadDir = __dirname + '/downloads/'
 var downloadedFiles;
 
 function isDownloaded (filename) {
@@ -22,7 +23,8 @@ function handleJob(job) {
   if (!isDownloaded(job.descriptor)) {
     console.log(chalk.yellow('file not downloaded yet. getting now.'));
     var newLink = job.link.replace('view', 'download');
-    var curl = spawn('curl', [newLink, '-o', './downloads/' + job.descriptor + '.torrent']);
+    var curl = spawn('curl', [newLink, '-o', downloadDir + job.descriptor + '.torrent']);
+    return job.descriptor;
   } else {
     console.log(chalk.green('file previously downloaded.'));
   }
@@ -43,15 +45,33 @@ function processOutput(output) {
   });
   console.log(chalk.green('processing finished'));
   if (newDownloads.length > 0) {
-    console.log(chalk.green('New Files downloaded:'));
-    newDownloads.foreach(function (a) {
-      console.log(chalk.green(a));
+    console.log(chalk.yellow('New Files downloaded:'));
+    newDownloads.forEach(function (a) {
+      console.log(a);
     });
-    console.log(chalk.green('See ./downloads'));
+    console.log(chalk.green('See', downloadDir));
+  } else {
+    console.log(chalk.yellow('Nothing new.'));
+  }
+  console.log(chalk.yellow('Previous:'));
+  var j = 10;
+  for (var i = 1; i < j; i++) {
+    var filename = downloadedFiles[downloadedFiles.length - i];
+    switch (filename) {
+      case '.DS_Store':
+      case '.gitkeep':
+        j++;
+        break;
+      default:
+        console.log(filename);
+    }
   }
 }
 
-downloadedFiles = fs.readdirSync('./downloads');
+downloadedFiles = fs.readdirSync(downloadDir);
+downloadedFiles.sort(function(a, b) {
+  return fs.statSync(downloadDir + a).mtime.getTime() > fs.statSync(downloadDir + b).mtime.getTime();
+});
 console.log(chalk.green('fetching URLs'));
 var output = '';
 var path = __dirname + '/phantom/getUrls.js';

@@ -1,14 +1,29 @@
 var fs = require('fs');
 var spawn = require('child_process').spawn;
 var chalk = require('chalk');
+var config = require('./config');
 
 var downloadDir = __dirname + '/downloads/'
 var downloadedFiles;
 
-function isDownloaded (filename) {
+function matchName(base, target) {
+  return base.indexOf(target) !== -1;
+}
+
+function isBlacklisted(descriptor) {
+  for (var i = 0; i < config.blacklist.length; i++) {
+    var blacklisted = config.blacklist[i];
+    if (matchName(descriptor, blacklisted)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isDownloaded(filename) {
   for (var i = 0; i < downloadedFiles.length; i++) {
     var downloadedFile = downloadedFiles[i];
-    if (downloadedFile.indexOf(filename) !== -1) {
+    if (matchName(downloadedFile, filename)) {
       return true;
     }
   }
@@ -23,7 +38,18 @@ function handleJob(job) {
   if (!isDownloaded(job.descriptor)) {
     console.log(chalk.yellow('file not downloaded yet. getting now.'));
     var newLink = job.link.replace('view', 'download');
-    var curl = spawn('curl', [newLink, '-o', downloadDir + job.descriptor + '.torrent']);
+    var filepath = downloadDir + job.descriptor + '.torrent';
+    var curl = spawn('curl', [newLink, '-o', filepath]);
+    curl.on('close', function () {
+      if (!isBlacklisted(job.descriptor)) {
+        console.log();
+        console.log(chalk.green('opening', filepath));
+        spawn('open', [filepath]);
+      } else {
+        console.log();
+        console.log(chalk.red('blacklisted file', filepath, 'will not be opened.'));
+      }
+    });
     return job.descriptor;
   } else {
     console.log(chalk.green('file previously downloaded.'));

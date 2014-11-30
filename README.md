@@ -8,6 +8,9 @@ Requires a `config.json` with this schema:
 ```json
 {
   "url": "urlForSearchResults",
-  "selector": ".whateverClassName a"
+  "selector": ".whateverClassName a",
+  "blacklist": [
+    "Substring of title you don't want to open right away"
+  ]
 }
 ```

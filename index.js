@@ -47,8 +47,6 @@ function handleJob(job) {
       }
     });
     return job.descriptor;
-  } else {
-    console.log(chalk.green('file previously downloaded.'));
   }
 }
 

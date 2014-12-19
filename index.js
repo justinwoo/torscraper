@@ -31,12 +31,8 @@ function isDownloaded(filename) {
 }
 
 function handleJob(job) {
-  console.log(
-    chalk.yellow('handling'),
-    job.descriptor
-  );
   if (!isDownloaded(job.descriptor)) {
-    console.log(chalk.yellow('file not downloaded yet. getting now.'));
+    console.log(chalk.yellow('downloading', job.descriptor));
     var newLink = job.link.replace('view', 'download');
     var filepath = downloadDir + job.descriptor + '.torrent';
     var curl = spawn('curl', [newLink, '-o', filepath]);

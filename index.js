@@ -39,8 +39,7 @@ function handleJob(job) {
     curl.on('close', function () {
       if (!isBlacklisted(job.descriptor)) {
         console.log();
-        console.log(chalk.green('opening', filepath));
-        spawn('open', [filepath]);
+        console.log(chalk.green('downloaded', filepath));
       } else {
         console.log();
         console.log(chalk.red('blacklisted file', filepath, 'will not be opened.'));

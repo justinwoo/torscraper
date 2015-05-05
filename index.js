@@ -32,6 +32,10 @@ function isDownloaded(filename) {
 
 function handleJob(job) {
   if (!isDownloaded(job.descriptor)) {
+    if (isBlacklisted(job.descriptor)) {
+      // dont download blacklisted crap
+      return;
+    }
     console.log(chalk.yellow('downloading', job.descriptor));
     var newLink = job.link.replace('view', 'download');
     var filepath = downloadDir + job.descriptor + '.torrent';

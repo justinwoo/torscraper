@@ -33,15 +33,18 @@ function isDownloaded(fileDetails, filename) {
 
 var downloadedFilesStream = new Rx.Subject();
 var fileDetailsStream = new Rx.Subject();
+var fileStatsStream = new Rx.Subject();
 
 console.log(chalk.green('reading previously downloaded files'));
 fs.readdir(downloadDir, function (err, files) {
   downloadedFilesStream.onNext(files);
 });
 
+var downloadedFilesCount;
+
 downloadedFilesStream.subscribe(function (files) {
   console.log(chalk.green('getting downloaded files\' details'));
-  var fileStatsStream = new Rx.Subject();
+  downloadedFilesCount = files.length;
   files.map(function (file) {
     fs.stat(downloadDir + file, function (err, stat) {
       fileStatsStream.onNext({
@@ -50,15 +53,15 @@ downloadedFilesStream.subscribe(function (files) {
       });
     });
   });
+});
 
-  var fileDetails = [];
-  fileStatsStream.subscribe(function (item) {
-    fileDetails.push(item);
+var fileDetails = [];
+fileStatsStream.subscribe(function (item) {
+  fileDetails.push(item);
 
-    if (fileDetails.length === files.length) {
-      fileDetailsStream.onNext(fileDetails);
-    }
-  });
+  if (fileDetails.length === downloadedFilesCount) {
+    fileDetailsStream.onNext(fileDetails);
+  }
 });
 
 console.log(chalk.green('fetching URLs'));

@@ -1,4 +1,8 @@
+index.js*
 node_modules
 config.json
+elm-stuff
+elm.js
+fixtures
 downloads/*
 !downloads/.gitkeep

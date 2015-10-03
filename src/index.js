@@ -43,7 +43,7 @@ function main(config) {
       targets.push(target);
     });
 
-    return targets;
+    return targets.reverse();
   });
 
   Rx.Observable.combineLatest(
@@ -66,9 +66,7 @@ function main(config) {
       return worker;
     }
   ).subscribe(function (worker) {
-    var downloadRequests = Rx.Observable.fromCallback(worker.ports.requestDownloadSignal.subscribe);
-
-    downloadRequests().subscribe(function (targets) {
+    worker.ports.requestDownloadSignal.subscribe(function (targets) {
       if (targets.length === 0) {
         console.log(chalk.green('nothing new to download'));
         return;

@@ -67,7 +67,6 @@ function main(config) {
     }
   ).subscribe(function (worker) {
     var downloadRequests = Rx.Observable.fromCallback(worker.ports.requestDownloadSignal.subscribe);
-    var test = Rx.Observable.fromCallback(worker.ports.testSignal.subscribe);
 
     downloadRequests().subscribe(function (targets) {
       if (targets.length === 0) {

@@ -1,7 +1,6 @@
 module Main where
 
 import String
-import Debug exposing (log)
 
 type alias File = String
 type alias Target =
@@ -34,9 +33,6 @@ getDownloadRequests bannedWords downloadedFiles fetchedTargets =
     (processFile bannedWords downloadedFiles)
     []
     fetchedTargets
-
-port testSignal : Signal BannedWords
-port testSignal = bannedWordsSignal
 
 port requestDownloadSignal : Signal DownloadRequest
 port requestDownloadSignal =

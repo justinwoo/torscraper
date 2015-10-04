@@ -54,19 +54,17 @@ function main(config) {
       fetchedTargets
     ) {
       var worker = Elm.worker(Elm.Main, {
-        bannedWordsSignal: [],
-        downloadedFilesSignal: [],
-        fetchedTargetsSignal: []
+        bannedWordsSignal: config.blacklist,
+        downloadedFilesSignal: downloadedFiles,
+        fetchedTargetsSignal: fetchedTargets,
+        getDownloadsSignal: null
       });
-
-      worker.ports.bannedWordsSignal.send(config.blacklist);
-      worker.ports.downloadedFilesSignal.send(downloadedFiles);
-      worker.ports.fetchedTargetsSignal.send(fetchedTargets);
 
       return worker;
     }
   ).subscribe(function (worker) {
-    worker.ports.requestDownloadSignal.subscribe(function (targets) {
+    worker.ports.getDownloadsSignal.send('request');
+    worker.ports.requestDownloadsSignal.subscribe(function (targets) {
       if (targets.length === 0) {
         console.log(chalk.green('nothing new to download'));
         return;

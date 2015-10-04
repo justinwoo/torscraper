@@ -1,6 +1,7 @@
 module Main where
 
 import String
+import Json.Decode exposing (Value)
 
 type alias File = String
 type alias Target =
@@ -12,12 +13,11 @@ type alias BannedWords = List File
 type alias DownloadedFiles = List File
 type alias FetchedTargets = List Target
 type alias DownloadRequest = List Target
-type alias GetDownloads = String
 
 port bannedWordsSignal : Signal BannedWords
 port downloadedFilesSignal : Signal DownloadedFiles
 port fetchedTargetsSignal : Signal FetchedTargets
-port getDownloadsSignal : Signal (Maybe String)
+port getDownloadsSignal : Signal Value
 
 processFile : BannedWords -> DownloadedFiles -> Target -> List Target -> List Target
 processFile bannedWords downloadedFiles target targets =

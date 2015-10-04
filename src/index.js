@@ -63,7 +63,7 @@ function main(config) {
       return worker;
     }
   ).subscribe(function (worker) {
-    worker.ports.getDownloadsSignal.send('request');
+    worker.ports.getDownloadsSignal.send();
     worker.ports.requestDownloadsSignal.subscribe(function (targets) {
       if (targets.length === 0) {
         console.log(chalk.green('nothing new to download'));

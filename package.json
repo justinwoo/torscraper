@@ -16,7 +16,7 @@
     "babel-loader": "^5.3.2",
     "chalk": "^1.1.1",
     "cheerio": "^0.19.0",
-    "elm-simple-loader": "^1.0.0",
+    "elm-simple-loader": "^1.0.1",
     "json-loader": "^0.5.3",
     "request": "^2.64.0",
     "webpack": "^1.12.2"

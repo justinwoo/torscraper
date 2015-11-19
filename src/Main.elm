@@ -26,8 +26,10 @@ processFile bannedWords downloadedFiles target targets =
     blacklisted = isBlacklisted bannedWords name
     downloaded = isDownloaded downloadedFiles name
   in
-    if | blacklisted || downloaded -> targets
-       | otherwise -> target :: targets
+    if blacklisted || downloaded then
+       targets
+    else
+       target :: targets
 
 getDownloadRequests : BannedWords -> DownloadedFiles -> FetchedTargets -> a -> DownloadRequest
 getDownloadRequests bannedWords downloadedFiles fetchedTargets _ =

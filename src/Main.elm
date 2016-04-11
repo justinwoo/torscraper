@@ -14,9 +14,9 @@ type alias DownloadedFiles = List File
 type alias FetchedTargets = List Target
 type alias DownloadRequest = List Target
 
-port bannedWordsSignal : Signal BannedWords
-port downloadedFilesSignal : Signal DownloadedFiles
-port fetchedTargetsSignal : Signal FetchedTargets
+port bannedWords : BannedWords
+port downloadedFiles : DownloadedFiles
+port fetchedTargets : FetchedTargets
 port getDownloadsSignal : Signal Value
 
 processFile : BannedWords -> DownloadedFiles -> Target -> List Target -> List Target
@@ -31,8 +31,8 @@ processFile bannedWords downloadedFiles target targets =
     else
        target :: targets
 
-getDownloadRequests : BannedWords -> DownloadedFiles -> FetchedTargets -> a -> DownloadRequest
-getDownloadRequests bannedWords downloadedFiles fetchedTargets _ =
+getDownloadRequests : a -> DownloadRequest
+getDownloadRequests _ =
   List.foldl
     (processFile bannedWords downloadedFiles)
     []
@@ -40,11 +40,8 @@ getDownloadRequests bannedWords downloadedFiles fetchedTargets _ =
 
 port requestDownloadsSignal : Signal DownloadRequest
 port requestDownloadsSignal =
-  Signal.map4
+  Signal.map
     getDownloadRequests
-    bannedWordsSignal
-    downloadedFilesSignal
-    fetchedTargetsSignal
     getDownloadsSignal
 
 isBlacklisted : BannedWords -> File -> Bool

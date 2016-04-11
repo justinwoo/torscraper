@@ -54,9 +54,9 @@ function main(config) {
       fetchedTargets
     ) {
       var worker = Elm.worker(Elm.Main, {
-        bannedWordsSignal: config.blacklist,
-        downloadedFilesSignal: downloadedFiles,
-        fetchedTargetsSignal: fetchedTargets,
+        bannedWords: config.blacklist,
+        downloadedFiles: downloadedFiles,
+        fetchedTargets: fetchedTargets,
         getDownloadsSignal: null
       });
 

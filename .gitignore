@@ -1,8 +1,13 @@
-index.js*
-node_modules
+/index.js*
 config.json
 elm-stuff
 elm.js
 fixtures
 downloads/*
 !downloads/.gitkeep
+/bower_components/
+/node_modules/
+/.pulp-cache/
+/output/
+/.psci*
+/src/.webpack.js

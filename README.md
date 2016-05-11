@@ -1,7 +1,7 @@
 torscraper
 ==========
 
-crappy scraper written in JS and Elm using webpack targeting node
+simple stupid scraper for torrents written in purescript and node
 
 ## Usage
 

@@ -1,0 +1,18 @@
+{
+  "name": "torscraper",
+  "version": "1.0.0",
+  "moduleType": [
+    "node"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-console": "^0.1.0",
+    "purescript-strings": "^0.7.1",
+    "purescript-aff": "^0.16.1"
+  }
+}

@@ -10,20 +10,18 @@ var chalk = require('chalk');
 var CONFIG_PATH = './config.json';
 var DOWNLOAD_DIR = './downloads';
 
-exports.getConfig = function (callback) { // accepts a callback
-  return function () { // returns an effect
-    fs.readFile(CONFIG_PATH, 'utf8', function (err, data) {
-      callback(JSON.parse(data))(); // callback itself returns an effect
-    });
-  }
-}
+exports.configPath = CONFIG_PATH;
 
-exports.getDownloadedFiles = function (callback) {
-  return function () {
-    fs.readdir(DOWNLOAD_DIR, function (err, data) {
-      callback(data)();
-    });
-  }
+exports.downloadDir = DOWNLOAD_DIR;
+
+exports.parseConfigFile = function (string) {
+  var config = JSON.parse(string);
+
+  if (!config.url) throw "config is missing the url";
+  if (!config.selector) throw "config is missing the selector";
+  if (!config.blacklist) throw "config is missing the blacklist";
+
+  return config;
 }
 
 exports.getFetchedTargets = function (callback) {

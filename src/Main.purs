@@ -9,6 +9,10 @@ import Control.Monad.Eff.Exception (EXCEPTION)
 import Data.Array ((:))
 import Data.Foldable (any, foldl)
 import Data.String (contains)
+import Node.Encoding (Encoding(UTF8))
+import Node.FS (FS)
+import Node.FS.Aff (readTextFile, readdir)
+import Node.Path (FilePath)
 
 type File = String
 type BannedWords = Array String
@@ -50,14 +54,15 @@ isBlacklisted bannedFiles file =
 isDownloaded :: DownloadedFiles -> File -> Boolean
 isDownloaded downloadedFiles file =
   any (contains file) downloadedFiles
-  
-foreign import getConfig :: forall e. (Config -> Eff e Unit) -> Eff e Unit
-getConfig' :: forall e. Aff e Config
-getConfig' = makeAff (\e s -> getConfig s)
 
-foreign import getDownloadedFiles :: forall e. (DownloadedFiles -> Eff e Unit) -> Eff e Unit
-getDownloadedFiles' :: forall e. Aff e DownloadedFiles
-getDownloadedFiles' = makeAff (\e s -> getDownloadedFiles s)
+foreign import parseConfigFile :: String -> Config
+foreign import configPath :: String
+getConfig :: forall e. Aff (fs :: FS | e) Config
+getConfig = parseConfigFile <$> readTextFile UTF8 configPath
+
+foreign import downloadDir :: String
+getDownloadedFiles :: forall e. Aff (fs :: FS | e) (Array FilePath)
+getDownloadedFiles = readdir downloadDir
 
 foreign import getFetchedTargets :: forall e. (FetchedTargets -> Eff e Unit) -> Config -> Eff e Unit
 getFetchedTargets' :: forall e. Config -> Aff e FetchedTargets
@@ -67,10 +72,10 @@ foreign import kickOffDownloads :: forall e. DownloadTargets -> Eff (console :: 
 kickOffDownloads' :: forall e. DownloadTargets -> Aff (console :: CONSOLE | e) Unit
 kickOffDownloads' = liftEff <<< kickOffDownloads
 
-main :: forall e. Eff (err :: EXCEPTION, console :: CONSOLE | e) Unit
+main :: forall e. Eff (err :: EXCEPTION, fs :: FS, console :: CONSOLE | e) Unit
 main = launchAff $ do
-  config <- getConfig'
-  downloadedFiles <- getDownloadedFiles'
+  config <- getConfig
+  downloadedFiles <- getDownloadedFiles
   fetchedTargets <- getFetchedTargets' config
 
   kickOffDownloads' $ getDownloadTargets config.blacklist downloadedFiles fetchedTargets

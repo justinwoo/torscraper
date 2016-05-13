@@ -24,32 +24,34 @@ exports.parseConfigFile = function (string) {
   return config;
 }
 
-exports.getFetchedTargets = function (callback) {
-  return function (config) {
-    function scrapeHtml(html) {
-      var $ = cheerio.load(html);
-      var targets = [];
+exports.scrapeHtml = function (selector) {
+  return function (html) {
+    var $ = cheerio.load(html);
+    var targets = [];
 
-      $(config.selector).each(function (i, e) {
-        var $e = $(e);
-        var target = {
-          name: $e.text(),
-          url: $e.attr('href')
-        };
-        targets.push(target);
-      });
+    $(selector).each(function (i, e) {
+      var $e = $(e);
+      var target = {
+        name: $e.text(),
+        url: $e.attr('href')
+      };
+      targets.push(target);
+    });
 
-      return targets.reverse();
-    }
+    return targets.reverse();
+  }
+}
 
+exports.getTargetsPage = function (callback) {
+  return function (url) {
     return function () {
-      request(config.url, function () {
+      request(url, function () {
         var err = arguments[0];
         var body = arguments[2];
         if (err) {
           throw err;
         } else {
-          return callback(scrapeHtml(body))();
+          return callback(body)();
         }
       });
     }

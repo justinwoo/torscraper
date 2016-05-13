@@ -19,9 +19,12 @@ type BannedWords = Array String
 type DownloadedFiles = Array File
 type FetchedTargets = Array Target
 type DownloadTargets = Array Target
+type Url = String
+type Selector = String
+type HtmlBody = String
 type Config =
-  { url :: String
-  , selector :: String
+  { url :: Url
+  , selector :: Selector
   , blacklist :: BannedWords
   }
 type Target =
@@ -64,18 +67,20 @@ foreign import downloadDir :: String
 getDownloadedFiles :: forall e. Aff (fs :: FS | e) (Array FilePath)
 getDownloadedFiles = readdir downloadDir
 
-foreign import getFetchedTargets :: forall e. (FetchedTargets -> Eff e Unit) -> Config -> Eff e Unit
-getFetchedTargets' :: forall e. Config -> Aff e FetchedTargets
-getFetchedTargets' config = makeAff (\e s -> getFetchedTargets s config)
+foreign import data HTTP :: !
+foreign import scrapeHtml :: Selector -> HtmlBody -> FetchedTargets
+foreign import getTargetsPage :: forall e. (HtmlBody -> Eff (http :: HTTP | e) Unit) -> Url -> Eff (http :: HTTP | e) Unit
+getFetchedTargets :: forall e. Url -> Selector -> Aff (http :: HTTP | e) FetchedTargets
+getFetchedTargets url selector = scrapeHtml selector <$> makeAff (\e s -> getTargetsPage s url)
 
 foreign import kickOffDownloads :: forall e. DownloadTargets -> Eff (console :: CONSOLE | e) Unit
 kickOffDownloads' :: forall e. DownloadTargets -> Aff (console :: CONSOLE | e) Unit
 kickOffDownloads' = liftEff <<< kickOffDownloads
 
-main :: forall e. Eff (err :: EXCEPTION, fs :: FS, console :: CONSOLE | e) Unit
+main :: forall e. Eff (err :: EXCEPTION, fs :: FS, http :: HTTP, console :: CONSOLE | e) Unit
 main = launchAff $ do
-  config <- getConfig
+  {url, selector, blacklist} <- getConfig
   downloadedFiles <- getDownloadedFiles
-  fetchedTargets <- getFetchedTargets' config
+  fetchedTargets <- getFetchedTargets url selector
 
-  kickOffDownloads' $ getDownloadTargets config.blacklist downloadedFiles fetchedTargets
+  kickOffDownloads' $ getDownloadTargets blacklist downloadedFiles fetchedTargets

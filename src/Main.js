@@ -65,8 +65,6 @@ exports.kickOffDownloads = function (targets) {
       return;
     }
     targets.forEach(function (target) {
-      console.log(chalk.yellow('downloading', target.name));
-
       var url = target.url.replace('view', 'download').replace(/^\/\//, '');
       var filepath = path.join(DOWNLOAD_DIR, target.name + '.torrent');
       var curl = spawn('curl', [url, '-o', filepath]);

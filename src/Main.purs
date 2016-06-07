@@ -9,16 +9,13 @@ import Control.Monad.Eff.Exception (EXCEPTION)
 import Data.Array ((:))
 import Data.Foldable (any, foldl)
 import Data.String (contains)
-import Node.Encoding (Encoding(UTF8))
-import Node.FS (FS)
-import Node.FS.Aff (readTextFile, readdir)
-import Node.Path (FilePath)
 
 type File = String
 type BannedWords = Array String
 type DownloadedFiles = Array File
 type FetchedTargets = Array Target
 type DownloadTargets = Array Target
+type FilePath = String
 type Url = String
 type Selector = String
 type HtmlBody = String
@@ -58,14 +55,21 @@ isDownloaded :: DownloadedFiles -> File -> Boolean
 isDownloaded downloadedFiles file =
   any (contains file) downloadedFiles
 
+foreign import data FS :: !
 foreign import parseConfigFile :: String -> Config
 foreign import configPath :: String
+foreign import readTextFile :: forall e. (String -> Eff (fs :: FS | e) Unit) -> String -> Eff (fs :: FS | e) Unit
+readTextFile' :: forall e. String -> Aff (fs :: FS | e) String
+readTextFile' x = makeAff (\e s -> readTextFile s x)
 getConfig :: forall e. Aff (fs :: FS | e) Config
-getConfig = parseConfigFile <$> readTextFile UTF8 configPath
+getConfig = parseConfigFile <$> readTextFile' configPath
 
 foreign import downloadDir :: String
+foreign import readdir :: forall e. (Array FilePath -> Eff (fs :: FS | e) Unit) -> String -> Eff (fs :: FS | e) Unit
+readdir' :: forall e. String -> Aff (fs :: FS | e) (Array FilePath)
+readdir' x = makeAff (\e s -> readdir s x)
 getDownloadedFiles :: forall e. Aff (fs :: FS | e) (Array FilePath)
-getDownloadedFiles = readdir downloadDir
+getDownloadedFiles = readdir' downloadDir
 
 foreign import data HTTP :: !
 foreign import scrapeHtml :: Selector -> HtmlBody -> FetchedTargets

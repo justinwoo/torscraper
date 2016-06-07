@@ -1,5 +1,3 @@
-//module Main
-
 var fs = require('fs');
 var request = require('request');
 var cheerio = require('cheerio');
@@ -13,6 +11,26 @@ var DOWNLOAD_DIR = './downloads';
 exports.configPath = CONFIG_PATH;
 
 exports.downloadDir = DOWNLOAD_DIR;
+
+exports.readTextFile = function (callback) {
+  return function (string) {
+    return function () {
+      fs.readFile(string, 'utf8', function (err, data) {
+        callback(data)();
+      });
+    }
+  }
+}
+
+exports.readdir = function (callback) {
+  return function (string) {
+    return function () {
+      fs.readdir(string, function (err, data) {
+        callback(data)();
+      });
+    }
+  }
+}
 
 exports.parseConfigFile = function (string) {
   var config = JSON.parse(string);

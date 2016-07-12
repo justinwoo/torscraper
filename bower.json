@@ -14,9 +14,11 @@
     "purescript-console": "^1.0.0",
     "purescript-strings": "^1.0.0",
     "purescript-aff": "^1.0.0",
-    "purescript-prelude": "^1.0.1"
+    "purescript-prelude": "^1.0.1",
+    "purescript-partial": "^1.1.2"
   },
   "devDependencies": {
-    "purescript-test-unit": "^7.0.0"
+    "purescript-test-unit": "^7.0.0",
+    "purescript-debug": "^1.0.0"
   }
 }

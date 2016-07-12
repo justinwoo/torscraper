@@ -7,8 +7,12 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Data.Array ((:))
-import Data.Foldable (any, foldl)
+import Data.Either (fromRight)
+import Data.Foldable (any)
+import Data.Monoid (mempty)
 import Data.String (contains)
+import Data.String.Regex (regex, test, noFlags)
+import Partial.Unsafe (unsafePartial)
 
 type File = String
 type BannedWords = Array String
@@ -29,27 +33,27 @@ type Target =
   , url :: String
   }
 
-processFile :: BannedWords -> DownloadedFiles -> Array Target -> Target -> Array Target
-processFile bannedWords downloadedFiles targets target =
-  if blacklisted || downloaded then
-    targets
-  else
-    target : targets
-  where
-    name = target.name
-    blacklisted = isBlacklisted bannedWords name
-    downloaded = isDownloaded downloadedFiles name
-
 getDownloadTargets :: BannedWords -> DownloadedFiles -> FetchedTargets -> DownloadTargets
 getDownloadTargets bannedWords downloadedFiles fetchedTargets =
-  foldl
-    (processFile bannedWords downloadedFiles)
-    []
-    fetchedTargets
+  fetchedTargets
+    >>= processFile
+      [ isBlacklisted bannedWords
+      , isDownloaded downloadedFiles
+      , not isProperName
+      ]
+  where
+    processFile tests x =
+      case any (\f -> f x.name) tests of
+        true -> mempty
+        false -> pure x
+
+isProperName :: String -> Boolean
+isProperName =
+  test $ unsafePartial $ fromRight $ regex "\\[\\w*\\] .* - \\d* \\[.*\\]\\.mkv" noFlags
 
 isBlacklisted :: BannedWords -> File -> Boolean
 isBlacklisted bannedFiles file =
-  any (\x -> contains x file) bannedFiles
+  any (flip contains file) bannedFiles
 
 isDownloaded :: DownloadedFiles -> File -> Boolean
 isDownloaded downloadedFiles file =

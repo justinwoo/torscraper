@@ -1,7 +1,7 @@
 module Main where
 
 import Prelude
-import Control.Monad.Aff (Aff, launchAff, makeAff)
+import Control.Monad.Aff (Canceler, Aff, launchAff, makeAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
@@ -81,7 +81,17 @@ foreign import kickOffDownloads :: forall e. DownloadTargets -> Eff (console :: 
 kickOffDownloads' :: forall e. DownloadTargets -> Aff (console :: CONSOLE | e) Unit
 kickOffDownloads' = liftEff <<< kickOffDownloads
 
-main :: forall e. Eff (err :: EXCEPTION, fs :: FS, http :: HTTP, console :: CONSOLE | e) Unit
+type MyEffects e =
+  ( fs :: FS
+  , http :: HTTP
+  , console :: CONSOLE
+  | e
+  )
+
+main :: forall e.
+  Eff
+    (MyEffects (err :: EXCEPTION | e))
+    (Canceler (MyEffects e))
 main = launchAff $ do
   {url, selector, blacklist} <- getConfig
   downloadedFiles <- getDownloadedFiles

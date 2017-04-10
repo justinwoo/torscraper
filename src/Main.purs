@@ -1,19 +1,37 @@
 module Main where
 
 import Prelude
-
-import Control.Monad.Aff (Canceler, Aff, launchAff, makeAff)
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Exception as Exc
+import Data.Array as A
+import Control.Monad.Aff (Aff, Canceler, launchAff, makeAff)
+import Control.Monad.Aff.Console (error, log)
+import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Data.Array ((:))
-import Data.Either (fromRight)
-import Data.Foldable (any)
+import Control.Monad.Eff.Exception (EXCEPTION, Error)
+import Control.Monad.Except (runExcept)
+import Data.Array (null)
+import Data.Either (Either(..), fromRight)
+import Data.Foldable (any, find, traverse_)
+import Data.Foreign (F)
+import Data.Foreign.Class (class Decode)
+import Data.Foreign.Generic (decodeJSON, defaultOptions, genericDecode)
+import Data.Function.Uncurried (Fn3, runFn3)
+import Data.Generic.Rep (class Generic)
+import Data.List (fromFoldable, (:))
+import Data.Maybe (Maybe(..))
 import Data.Monoid (mempty)
-import Data.String (contains)
-import Data.String.Regex (regex, test, noFlags)
+import Data.String (Pattern(..), Replacement(..), contains, replace)
+import Data.String.Regex (regex, test)
+import Data.String.Regex.Flags (noFlags)
+import Global.Unsafe (unsafeStringify)
+import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
+import Node.ChildProcess (CHILD_PROCESS, defaultSpawnOptions, onClose, onError, spawn)
+import Node.Encoding (Encoding(..))
+import Node.FS.Aff (FS, readTextFile, readdir)
+import Node.Path (concat)
 import Partial.Unsafe (unsafePartial)
+import Text.Parsing.StringParser (ParseError)
 
 type File = String
 type BannedWords = Array String
@@ -22,17 +40,25 @@ type FetchedTargets = Array Target
 type DownloadTargets = Array Target
 type FilePath = String
 type Url = String
-type Selector = String
 type HtmlBody = String
-type Config =
+
+newtype Config = Config
   { url :: Url
-  , selector :: Selector
   , blacklist :: BannedWords
   }
+derive instance genericConfig :: Generic Config _
+instance decodeConfig :: Decode Config where
+  decode = genericDecode $ defaultOptions {unwrapSingleConstructors = true}
+
+type P a = Either ParseError a
+
 type Target =
   { name :: File
   , url :: String
   }
+
+downloadsPath :: String
+downloadsPath = "./downloads"
 
 getDownloadTargets :: BannedWords -> DownloadedFiles -> FetchedTargets -> DownloadTargets
 getDownloadTargets bannedWords downloadedFiles fetchedTargets =
@@ -54,52 +80,130 @@ isProperName =
 
 isBlacklisted :: BannedWords -> File -> Boolean
 isBlacklisted bannedFiles file =
-  any (flip contains file) bannedFiles
+  any (flip contains file <<< Pattern) $ bannedFiles
 
 isDownloaded :: DownloadedFiles -> File -> Boolean
 isDownloaded downloadedFiles file =
-  any (contains file) downloadedFiles
+  any (contains (Pattern file)) downloadedFiles
 
-foreign import data FS :: !
-foreign import parseConfigFile :: String -> Config
-foreign import configPath :: String
-foreign import readTextFile :: forall e. (String -> Eff (fs :: FS | e) Unit) -> String -> Eff (fs :: FS | e) Unit
-readTextFile' :: forall e. String -> Aff (fs :: FS | e) String
-readTextFile' x = makeAff (\e s -> readTextFile s x)
-getConfig :: forall e. Aff (fs :: FS | e) Config
-getConfig = parseConfigFile <$> readTextFile' configPath
+getConfig :: forall a e.
+  Decode a
+  => Aff
+       ( fs :: FS
+       | e
+       )
+       (F a)
+getConfig = decodeJSON <$> readTextFile UTF8 "./config.json"
 
-foreign import downloadDir :: String
-foreign import readdir :: forall e. (Array FilePath -> Eff (fs :: FS | e) Unit) -> String -> Eff (fs :: FS | e) Unit
-readdir' :: forall e. String -> Aff (fs :: FS | e) (Array FilePath)
-readdir' x = makeAff (\e s -> readdir s x)
-getDownloadedFiles :: forall e. Aff (fs :: FS | e) (Array FilePath)
-getDownloadedFiles = readdir' downloadDir
+getDownloadedFiles :: forall e.
+  Aff
+    ( fs :: FS
+    | e
+    )
+    (Array FilePath)
+getDownloadedFiles = readdir downloadsPath
 
-foreign import data HTTP :: !
-foreign import scrapeHtml :: Selector -> HtmlBody -> FetchedTargets
-foreign import getTargetsPage :: forall e. (HtmlBody -> Eff (http :: HTTP | e) Unit) -> Url -> Eff (http :: HTTP | e) Unit
-getFetchedTargets :: forall e. Url -> Selector -> Aff (http :: HTTP | e) FetchedTargets
-getFetchedTargets url selector = scrapeHtml selector <$> makeAff (\e s -> getTargetsPage s url)
+foreign import decodeHtml :: String -> String
+scrapeHtml :: String -> Either ParseError (Array Target)
+scrapeHtml text = do
+  tags <- fromFoldable <$> parseTags text
+  pure <<< A.fromFoldable $ extractTargets mempty tags
+  where
+    extractTargets acc tags =
+      case tags of
+        (TagOpen (TagName "td") _)
+          : (TagOpen (TagName "a") attrs)
+          : TNode s
+          : xs -> case getHref attrs of
+            Just url -> extractTargets ({name: decodeHtml s, url } : acc) xs
+            _ -> extractTargets acc xs
+        (_ : xs) -> extractTargets acc xs
+        mempty -> acc
+    getHref attrs = do
+      (Attribute _ (Value href)) <- find match attrs
+      pure $ href
+    match (Attribute (Name name) _) = name == "href"
 
-foreign import kickOffDownloads :: forall e. DownloadTargets -> Eff (console :: CONSOLE | e) Unit
-kickOffDownloads' :: forall e. DownloadTargets -> Aff (console :: CONSOLE | e) Unit
-kickOffDownloads' = liftEff <<< kickOffDownloads
+getFetchedTargets :: forall e.
+  Url ->
+  Aff (ajax :: AJAX | e) (P FetchedTargets)
+getFetchedTargets url = do
+  res <- get url
+  pure $ scrapeHtml res
+
+foreign import data AJAX :: Effect
+foreign import ajaxGet :: forall e.
+  Fn3
+    Url
+    (Error -> Eff (ajax :: AJAX | e) Unit)
+    (String -> Eff (ajax :: AJAX | e) Unit)
+    (Eff (ajax :: AJAX | e) Unit)
+get :: forall e.
+  String
+  -> Aff
+       ( ajax :: AJAX
+       | e
+       )
+       String
+get url = makeAff (\error success -> runFn3 ajaxGet url error success)
 
 type MyEffects e =
   ( fs :: FS
-  , http :: HTTP
+  , ajax :: AJAX
   , console :: CONSOLE
+  , cp :: CHILD_PROCESS
   | e
   )
 
+curl :: forall e.
+  String
+  -> String
+  -> Aff
+      ( cp :: CHILD_PROCESS
+      | e
+      )
+      Unit
+curl url path = do
+  cp <- liftEff $ spawn "curl" [url, "-o", path] defaultSpawnOptions
+  makeAff \e s -> do
+    onError cp (e <<< Exc.error <<< unsafeStringify)
+    onClose cp (s <<< const unit)
+
+downloadTarget :: forall e.
+  Target
+  -> Aff
+       ( cp :: CHILD_PROCESS
+       , console :: CONSOLE
+       | e
+       )
+       Unit
+downloadTarget {url, name} = do
+  curl targetUrl path
+  log $ "downloaded " <> path
+  where
+    targetUrl =
+      replace (Pattern "view") (Replacement "download")
+      <<< replace (Pattern "//") (Replacement "")
+      $ url
+    path = concat [downloadsPath, name <> ".torrent"]
+
 main :: forall e.
   Eff
-    (MyEffects (err :: EXCEPTION | e))
+    (MyEffects (exception :: EXCEPTION | e))
     (Canceler (MyEffects e))
 main = launchAff $ do
-  {url, selector, blacklist} <- getConfig
-  downloadedFiles <- getDownloadedFiles
-  fetchedTargets <- getFetchedTargets url selector
+  config <- getConfig
+  case runExcept config of
+    Right (Config {url, blacklist}) -> do
+      files <- getDownloadedFiles
+      getFetchedTargets url >>=
+        case _ of
+          Right xs -> do
+            let targets = getDownloadTargets blacklist files xs
 
-  kickOffDownloads' $ getDownloadTargets blacklist downloadedFiles fetchedTargets
+            if null targets
+              then log "nothing new to download"
+              else traverse_ downloadTarget targets
+          Left e -> do
+            error $ "error from parsing html: " <> show e
+    Left e -> error $ show e

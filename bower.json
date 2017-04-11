@@ -26,9 +26,5 @@
   "devDependencies": {
     "purescript-debug": "^3.0.0",
     "purescript-test-unit": "^11.0.0"
-  },
-  "resolutions": {
-    "purescript-prelude": "^3.0.0",
-    "purescript-aff": "^1.1.0"
   }
 }

@@ -1,8 +1,5 @@
 var request = require('request');
-var cheerio = require('cheerio');
 var he = require('he');
-
-var DOWNLOAD_DIR = './downloads';
 
 exports.decodeHtml = function (string) {
   return he.decode(string);

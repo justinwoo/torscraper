@@ -1,9 +1,4 @@
 var request = require('request');
-var he = require('he');
-
-exports.decodeHtml = function (string) {
-  return he.decode(string);
-};
 
 exports.ajaxGet = function (url, errorCallback, callback) {
   return function () {

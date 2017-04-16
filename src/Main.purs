@@ -22,6 +22,7 @@ import Data.List (fromFoldable, (:))
 import Data.Maybe (Maybe(..))
 import Data.Monoid (mempty)
 import Data.String (Pattern(..), Replacement(..), contains, replace)
+import Data.String.HtmlElements (decode)
 import Data.String.Regex (regex, test)
 import Data.String.Regex.Flags (noFlags)
 import Global.Unsafe (unsafeStringify)
@@ -103,7 +104,6 @@ getDownloadedFiles :: forall e.
     (Array FilePath)
 getDownloadedFiles = readdir downloadsPath
 
-foreign import decodeHtml :: String -> String
 scrapeHtml :: String -> Either ParseError (Array Target)
 scrapeHtml text = do
   tags <- fromFoldable <$> parseTags text
@@ -115,7 +115,7 @@ scrapeHtml text = do
           : (TagOpen (TagName "a") attrs)
           : TNode s
           : xs -> case getHref attrs of
-            Just url -> extractTargets ({name: decodeHtml s, url } : acc) xs
+            Just url -> extractTargets ({name: decode s, url } : acc) xs
             _ -> extractTargets acc xs
         (_ : xs) -> extractTargets acc xs
         mempty -> acc

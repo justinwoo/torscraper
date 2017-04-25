@@ -17,11 +17,11 @@
     "purescript-generics": "4.0.0",
     "purescript-partial": "^1.2.0",
     "purescript-prelude": "^3.0.0",
-    "purescript-string-parsers": "^3.0.0",
+    "purescript-string-parsers": "^3.0.1",
     "purescript-strings": "^3.0.0",
     "purescript-node-fs-aff": "^4.0.0",
     "purescript-node-child-process": "^4.0.0",
-    "purescript-lenient-html-parser": "^0.2.0",
+    "purescript-lenient-html-parser": "^0.3.1",
     "purescript-node-he": "^0.1.0"
   },
   "devDependencies": {

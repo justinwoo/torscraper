@@ -10,7 +10,6 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
 import Control.Monad.Except (runExcept)
-import Data.Array (null)
 import Data.Either (Either(..), fromRight)
 import Data.Foldable (any, find, traverse_)
 import Data.Foreign (F)
@@ -18,13 +17,15 @@ import Data.Foreign.Class (class Decode)
 import Data.Foreign.Generic (decodeJSON, defaultOptions, genericDecode)
 import Data.Function.Uncurried (Fn3, runFn3)
 import Data.Generic.Rep (class Generic)
-import Data.List (fromFoldable, (:))
+import Data.List (fold, fromFoldable, (:))
 import Data.Maybe (Maybe(..))
-import Data.Monoid (mempty)
+import Data.Monoid (class Monoid, mempty)
+import Data.Newtype (class Newtype, unwrap)
 import Data.String (Pattern(..), Replacement(..), contains, replace)
 import Data.String.HtmlElements (decode)
 import Data.String.Regex (regex, test)
 import Data.String.Regex.Flags (noFlags)
+import Data.Traversable (for)
 import Global.Unsafe (unsafeStringify)
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
 import Node.ChildProcess (CHILD_PROCESS, defaultSpawnOptions, onClose, onError, spawn)
@@ -37,14 +38,16 @@ import Text.Parsing.StringParser (ParseError)
 type File = String
 type BannedWords = Array String
 type DownloadedFiles = Array File
-type FetchedTargets = Array Target
-type DownloadTargets = Array Target
+newtype FetchedTargets = FetchedTargets (Array Target)
+newtype DownloadTargets = DownloadTargets (Array Target)
+derive newtype instance monoidDownloadTargets :: Monoid DownloadTargets
+derive instance newtypeDownloadTargets :: Newtype DownloadTargets _
 type FilePath = String
 type Url = String
 type HtmlBody = String
 
 newtype Config = Config
-  { url :: Url
+  { urls :: Array Url
   , blacklist :: BannedWords
   }
 derive instance genericConfig :: Generic Config _
@@ -62,8 +65,8 @@ downloadsPath :: String
 downloadsPath = "./downloads"
 
 getDownloadTargets :: BannedWords -> DownloadedFiles -> FetchedTargets -> DownloadTargets
-getDownloadTargets bannedWords downloadedFiles fetchedTargets =
-  fetchedTargets
+getDownloadTargets bannedWords downloadedFiles (FetchedTargets fetchedTargets) =
+  DownloadTargets $ fetchedTargets
     >>= processFile
       [ isBlacklisted bannedWords
       , isDownloaded downloadedFiles
@@ -129,7 +132,7 @@ getFetchedTargets :: forall e.
   Aff (ajax :: AJAX | e) (P FetchedTargets)
 getFetchedTargets url = do
   res <- get url
-  pure $ scrapeHtml res
+  pure $ FetchedTargets <$> scrapeHtml res
 
 foreign import data AJAX :: Effect
 foreign import ajaxGet :: forall e.
@@ -187,6 +190,23 @@ downloadTarget {url, name} = do
       $ url
     path = concat [downloadsPath, name <> ".torrent"]
 
+scrape :: forall e.
+  BannedWords
+  -> DownloadedFiles
+  -> Url
+  -> Aff
+      ( ajax :: AJAX
+      , console :: CONSOLE
+      | e
+      )
+      DownloadTargets
+scrape blacklist files url = getFetchedTargets url >>= case _ of
+  Right xs -> do
+    pure $ getDownloadTargets blacklist files xs
+  Left e -> do
+    error $ "error from parsing html: " <> show e
+    pure mempty
+
 main :: forall e.
   Eff
     (MyEffects (exception :: EXCEPTION | e))
@@ -194,16 +214,11 @@ main :: forall e.
 main = launchAff $ do
   config <- getConfig
   case runExcept config of
-    Right (Config {url, blacklist}) -> do
+    Right (Config {urls, blacklist}) -> do
       files <- getDownloadedFiles
-      getFetchedTargets url >>=
-        case _ of
-          Right xs -> do
-            let targets = getDownloadTargets blacklist files xs
-
-            if null targets
-              then log "nothing new to download"
-              else traverse_ downloadTarget targets
-          Left e -> do
-            error $ "error from parsing html: " <> show e
+      ys <- for urls $ scrape blacklist files
+      case unwrap $ fold ys of
+        [] -> log "nothing new to download"
+        targets -> traverse_ downloadTarget targets
+      pure unit
     Left e -> error $ show e

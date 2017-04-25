@@ -110,7 +110,7 @@ scrapeHtml text = do
           : (TagOpen (TagName "a") attrs)
           : TNode s
           : xs -> case getHref attrs of
-            Just url -> extractTargets ({name: decode s, url } : acc) xs
+            Just url -> extractTargets ({name: decode s, url: decode url } : acc) xs
             _ -> extractTargets acc xs
         (_ : xs) -> extractTargets acc xs
         mempty -> acc

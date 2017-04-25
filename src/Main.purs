@@ -181,12 +181,12 @@ downloadTarget :: forall e.
        )
        Unit
 downloadTarget {url, name} = do
-  curl targetUrl path
+  _ <- curl targetUrl path
   log $ "downloaded " <> path
   where
     targetUrl =
       replace (Pattern "view") (Replacement "download")
-      <<< replace (Pattern "//") (Replacement "")
+      <<< replace (Pattern "//") (Replacement "https://")
       $ url
     path = concat [downloadsPath, name <> ".torrent"]
 

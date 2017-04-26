@@ -10,7 +10,7 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
 import Control.Monad.Except (runExcept)
-import Data.Either (Either(Left, Right))
+import Data.Either (Either(..), fromRight)
 import Data.Foldable (any, find, traverse_)
 import Data.Foreign (F)
 import Data.Foreign.Class (class Decode)
@@ -23,6 +23,8 @@ import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, unwrap)
 import Data.String (Pattern(..), Replacement(..), contains, replace)
 import Data.String.HtmlElements (decode)
+import Data.String.Regex (regex, test)
+import Data.String.Regex.Flags (noFlags)
 import Data.Traversable (for)
 import Global.Unsafe (unsafeStringify)
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
@@ -30,6 +32,7 @@ import Node.ChildProcess (CHILD_PROCESS, defaultSpawnOptions, onClose, onError, 
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (FS, readTextFile, readdir)
 import Node.Path (concat)
+import Partial.Unsafe (unsafePartial)
 import Text.Parsing.StringParser (ParseError)
 
 type File = String
@@ -67,12 +70,17 @@ getDownloadTargets bannedWords downloadedFiles (FetchedTargets fetchedTargets) =
     >>= processFile
       [ isBlacklisted bannedWords
       , isDownloaded downloadedFiles
+      , not isProperName
       ]
   where
     processFile tests x =
       case any (\f -> f x.name) tests of
         true -> mempty
         false -> pure x
+
+isProperName :: String -> Boolean
+isProperName =
+  test $ unsafePartial $ fromRight $ regex "\\[\\w*\\] .* - \\d* \\[.*\\]\\.mkv" noFlags
 
 isBlacklisted :: BannedWords -> File -> Boolean
 isBlacklisted bannedFiles file =

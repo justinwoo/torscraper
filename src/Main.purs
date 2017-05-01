@@ -11,13 +11,13 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
 import Control.Monad.Except (runExcept)
 import Data.Either (Either(..), fromRight)
-import Data.Foldable (any, find, traverse_)
+import Data.Foldable (any, find, foldMap, traverse_)
 import Data.Foreign (F)
 import Data.Foreign.Class (class Decode)
 import Data.Foreign.Generic (decodeJSON, defaultOptions, genericDecode)
 import Data.Function.Uncurried (Fn3, runFn3)
 import Data.Generic.Rep (class Generic)
-import Data.List (fold, fromFoldable, (:))
+import Data.List (fromFoldable, (:))
 import Data.Maybe (Maybe(..))
 import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, unwrap)
@@ -25,7 +25,6 @@ import Data.String (Pattern(..), Replacement(..), contains, replace)
 import Data.String.HtmlElements (decode)
 import Data.String.Regex (regex, test)
 import Data.String.Regex.Flags (noFlags)
-import Data.Traversable (for)
 import Global.Unsafe (unsafeStringify)
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
 import Node.ChildProcess (CHILD_PROCESS, defaultSpawnOptions, onClose, onError, spawn)
@@ -216,8 +215,8 @@ main = launchAff $ do
   case runExcept config of
     Right (Config {urls, blacklist}) -> do
       files <- getDownloadedFiles
-      ys <- for urls $ scrape blacklist files
-      case unwrap $ fold ys of
+      ys <- foldMap (scrape blacklist files) files
+      case unwrap $ ys of
         [] -> log "nothing new to download"
         targets -> traverse_ downloadTarget targets
       pure unit

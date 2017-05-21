@@ -10,6 +10,7 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
 import Control.Monad.Except (runExcept)
+import Data.Array (filter)
 import Data.Either (Either(..), fromRight)
 import Data.Foldable (any, find, foldMap, traverse_)
 import Data.Foreign (F)
@@ -42,11 +43,17 @@ newtype DownloadTargets = DownloadTargets (Array Target)
 derive newtype instance monoidDownloadTargets :: Monoid DownloadTargets
 derive instance newtypeDownloadTargets :: Newtype DownloadTargets _
 type FilePath = String
-type Url = String
+newtype Url = Url String
+derive instance newtypeUrl :: Newtype Url _
+derive instance genericUrl :: Generic Url _
+instance decodeUrl :: Decode Url where
+  decode = genericDecode $ defaultOptions {unwrapSingleConstructors = true}
+
 type HtmlBody = String
 
 newtype Config = Config
   { urls :: Array Url
+  , baseUrl :: Url
   , blacklist :: BannedWords
   }
 derive instance genericConfig :: Generic Config _
@@ -104,7 +111,9 @@ getDownloadedFiles :: forall e.
     | e
     )
     (Array FilePath)
-getDownloadedFiles = readdir downloadsPath
+getDownloadedFiles =
+  filter (contains $ Pattern "torrent")
+  <$> readdir downloadsPath
 
 scrapeHtml :: String -> Either ParseError (Array Target)
 scrapeHtml text = do
@@ -136,18 +145,18 @@ getFetchedTargets url = do
 foreign import data AJAX :: Effect
 foreign import ajaxGet :: forall e.
   Fn3
-    Url
+    String
     (Error -> Eff (ajax :: AJAX | e) Unit)
     (String -> Eff (ajax :: AJAX | e) Unit)
     (Eff (ajax :: AJAX | e) Unit)
 get :: forall e.
-  String
+  Url
   -> Aff
        ( ajax :: AJAX
        | e
        )
        String
-get url = makeAff (\error success -> runFn3 ajaxGet url error success)
+get (Url url) = makeAff (\error success -> runFn3 ajaxGet url error success)
 
 type MyEffects e =
   ( fs :: FS
@@ -172,21 +181,22 @@ curl url path = do
     onClose cp (s <<< const unit)
 
 downloadTarget :: forall e.
-  Target
+  Url
+  -> Target
   -> Aff
        ( cp :: CHILD_PROCESS
        , console :: CONSOLE
        | e
        )
        Unit
-downloadTarget {url, name} = do
+downloadTarget (Url baseUrl) {url, name} = do
   _ <- curl targetUrl path
   log $ "downloaded " <> path
   where
     targetUrl =
-      replace (Pattern "view") (Replacement "download")
-      <<< replace (Pattern "//") (Replacement "https://")
-      $ url
+      baseUrl
+      <> url
+      <> "/torrent"
     path = concat [downloadsPath, name <> ".torrent"]
 
 scrape :: forall e.
@@ -213,11 +223,11 @@ main :: forall e.
 main = launchAff $ do
   config <- getConfig
   case runExcept config of
-    Right (Config {urls, blacklist}) -> do
+    Right (Config {urls, baseUrl, blacklist}) -> do
       files <- getDownloadedFiles
-      ys <- foldMap (scrape blacklist files) files
+      ys <- foldMap (scrape blacklist files) urls
       case unwrap $ ys of
         [] -> log "nothing new to download"
-        targets -> traverse_ downloadTarget targets
+        targets -> traverse_ (downloadTarget baseUrl) targets
       pure unit
     Left e -> error $ show e

@@ -123,6 +123,17 @@ scrapeHtml text = do
     extractTargets acc tags =
       case tags of
         (TagOpen (TagName "td") _)
+          : (TagOpen (TagName "a") _)
+          : (TagOpen (TagName "i") _)
+          : _
+          : _
+          : _
+          : (TagOpen (TagName "a") attrs)
+          : TNode s
+          : xs -> case getHref attrs of
+            Just url -> extractTargets ({name: decode s, url: decode url } : acc) xs
+            _ -> extractTargets acc xs
+        (TagOpen (TagName "td") _)
           : (TagOpen (TagName "a") attrs)
           : TNode s
           : xs -> case getHref attrs of

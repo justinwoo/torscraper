@@ -1,3 +1,5 @@
+.psc-ide-port
+package-lock.json
 /index.js*
 config.json
 elm-stuff

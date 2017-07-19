@@ -22,7 +22,7 @@ import Data.List (fromFoldable, (:))
 import Data.Maybe (Maybe(..))
 import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, unwrap)
-import Data.String (Pattern(..), Replacement(..), contains, replace)
+import Data.String (Pattern(Pattern), contains)
 import Data.String.HtmlElements (decode)
 import Data.String.Regex (regex, test)
 import Data.String.Regex.Flags (noFlags)
@@ -40,6 +40,7 @@ type BannedWords = Array String
 type DownloadedFiles = Array File
 newtype FetchedTargets = FetchedTargets (Array Target)
 newtype DownloadTargets = DownloadTargets (Array Target)
+derive newtype instance semigroupDownloadTargets :: Semigroup DownloadTargets
 derive newtype instance monoidDownloadTargets :: Monoid DownloadTargets
 derive instance newtypeDownloadTargets :: Newtype DownloadTargets _
 type FilePath = String

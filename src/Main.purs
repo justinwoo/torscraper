@@ -1,22 +1,22 @@
 module Main where
 
 import Prelude
-import Control.Monad.Eff.Exception as Exc
-import Data.Array as A
+
 import Control.Monad.Aff (Aff, Canceler, launchAff, makeAff)
 import Control.Monad.Aff.Console (error, log)
 import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Exception (EXCEPTION, Error)
+import Control.Monad.Eff.Exception (EXCEPTION)
+import Control.Monad.Eff.Exception as Exc
 import Control.Monad.Except (runExcept)
 import Data.Array (filter)
+import Data.Array as A
 import Data.Either (Either(..), fromRight)
 import Data.Foldable (any, find, foldMap, traverse_)
 import Data.Foreign (F)
 import Data.Foreign.Class (class Decode)
 import Data.Foreign.Generic (decodeJSON, defaultOptions, genericDecode)
-import Data.Function.Uncurried (Fn3, runFn3)
 import Data.Generic.Rep (class Generic)
 import Data.List (fromFoldable, (:))
 import Data.Maybe (Maybe(..))
@@ -28,9 +28,11 @@ import Data.String.Regex (regex, test)
 import Data.String.Regex.Flags (noFlags)
 import Global.Unsafe (unsafeStringify)
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
+import Milkis (defaultFetchOptions, fetch, text)
 import Node.ChildProcess (CHILD_PROCESS, defaultSpawnOptions, onClose, onError, spawn)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (FS, readTextFile, readdir)
+import Node.HTTP (HTTP)
 import Node.Path (concat)
 import Partial.Unsafe (unsafePartial)
 import Text.Parsing.StringParser (ParseError)
@@ -149,30 +151,14 @@ scrapeHtml text = do
 
 getFetchedTargets :: forall e.
   Url ->
-  Aff (ajax :: AJAX | e) (P FetchedTargets)
-getFetchedTargets url = do
-  res <- get url
+  Aff (http :: HTTP | e) (P FetchedTargets)
+getFetchedTargets (Url url) = do
+  res <- text =<< fetch url defaultFetchOptions
   pure $ FetchedTargets <$> scrapeHtml res
-
-foreign import data AJAX :: Effect
-foreign import ajaxGet :: forall e.
-  Fn3
-    String
-    (Error -> Eff (ajax :: AJAX | e) Unit)
-    (String -> Eff (ajax :: AJAX | e) Unit)
-    (Eff (ajax :: AJAX | e) Unit)
-get :: forall e.
-  Url
-  -> Aff
-       ( ajax :: AJAX
-       | e
-       )
-       String
-get (Url url) = makeAff (\error success -> runFn3 ajaxGet url error success)
 
 type MyEffects e =
   ( fs :: FS
-  , ajax :: AJAX
+  , http :: HTTP
   , console :: CONSOLE
   , cp :: CHILD_PROCESS
   | e
@@ -216,7 +202,7 @@ scrape :: forall e.
   -> DownloadedFiles
   -> Url
   -> Aff
-      ( ajax :: AJAX
+      ( http :: HTTP
       , console :: CONSOLE
       | e
       )

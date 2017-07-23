@@ -12,7 +12,6 @@
   "license": "MIT",
   "dependencies": {
     "he": "^1.1.1",
-    "request": "^2.81.0",
-    "xhr2": "^0.1.4"
+    "node-fetch": "^1.7.1"
   }
 }

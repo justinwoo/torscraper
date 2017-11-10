@@ -1,0 +1,19 @@
+{
+    "name": "torscraper",
+    "set": "samosa",
+    "source": "https://github.com/justinwoo/package-sets.git",
+    "depends": [
+      "prelude",
+      "aff",
+      "console",
+      "foreign-generic",
+      "string-parsers",
+      "node-fs-aff",
+      "node-child-process",
+      "lenient-html-parser",
+      "node-he",
+      "milkis",
+      "test-unit",
+      "debug"
+    ]
+}

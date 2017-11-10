@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import Control.Monad.Aff (Aff, Canceler, launchAff, makeAff)
+import Control.Monad.Aff (Aff, launchAff_, makeAff)
 import Control.Monad.Aff.Console (error, log)
 import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Class (liftEff)
@@ -174,9 +174,10 @@ curl :: forall e.
       Unit
 curl url path = do
   cp <- liftEff $ spawn "curl" [url, "-o", path] defaultSpawnOptions
-  makeAff \e s -> do
-    onError cp (e <<< Exc.error <<< unsafeStringify)
-    onClose cp (s <<< const unit)
+  makeAff \cb -> do
+    onError cp (cb <<< Left <<< Exc.error <<< unsafeStringify)
+    onClose cp (cb <<< Right <<< const unit)
+    pure mempty
 
 downloadTarget :: forall e.
   Url
@@ -217,8 +218,8 @@ scrape blacklist files url = getFetchedTargets url >>= case _ of
 main :: forall e.
   Eff
     (MyEffects (exception :: EXCEPTION | e))
-    (Canceler (MyEffects e))
-main = launchAff $ do
+    Unit
+main = launchAff_ $ do
   config <- getConfig
   case runExcept config of
     Right (Config {urls, baseUrl, blacklist}) -> do

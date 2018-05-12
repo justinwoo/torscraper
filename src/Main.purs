@@ -2,40 +2,43 @@ module Main where
 
 import Prelude
 
-import Control.Monad.Aff (Aff, launchAff_, makeAff)
-import Control.Monad.Aff.Console (error, log)
-import Control.Monad.Eff (Eff, kind Effect)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Exception as Exc
-import Control.Monad.Except (runExcept)
 import Data.Array (filter)
 import Data.Array as A
 import Data.Either (Either(..), fromRight)
 import Data.Foldable (any, find, foldMap, traverse_)
-import Data.Foreign (F)
-import Data.Foreign.Class (class Decode)
-import Data.Foreign.Generic (decodeJSON, defaultOptions, genericDecode)
 import Data.Generic.Rep (class Generic)
 import Data.List (fromFoldable, (:))
 import Data.Maybe (Maybe(..))
-import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, unwrap)
 import Data.String (Pattern(Pattern), contains)
 import Data.String.HtmlElements (decode)
 import Data.String.Regex (regex, test)
 import Data.String.Regex.Flags (noFlags)
+import Effect (Effect)
+import Effect.Aff (Aff, launchAff_, makeAff)
+import Effect.Aff as Exc
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Console as EC
 import Global.Unsafe (unsafeStringify)
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
-import Milkis (defaultFetchOptions, fetch, text)
-import Node.ChildProcess (CHILD_PROCESS, defaultSpawnOptions, onClose, onError, spawn)
+import Milkis as M
+import Milkis.Impl.Node (nodeFetch)
+import Node.ChildProcess (defaultSpawnOptions, onClose, onError, spawn)
 import Node.Encoding (Encoding(..))
-import Node.FS.Aff (FS, readTextFile, readdir)
-import Node.HTTP (HTTP)
+import Node.FS.Aff (readTextFile, readdir)
 import Node.Path (concat)
 import Partial.Unsafe (unsafePartial)
+import Simple.JSON (class ReadForeign, readJSON)
 import Text.Parsing.StringParser (ParseError)
+
+fetch :: M.Fetch
+fetch = M.fetch nodeFetch
+
+log :: forall e. MonadEffect e => String -> e Unit
+log = liftEffect <<< EC.log
+
+error :: forall e. MonadEffect e => String -> e Unit
+error = liftEffect <<< EC.error
 
 type File = String
 type BannedWords = Array String
@@ -45,12 +48,12 @@ newtype DownloadTargets = DownloadTargets (Array Target)
 derive newtype instance semigroupDownloadTargets :: Semigroup DownloadTargets
 derive newtype instance monoidDownloadTargets :: Monoid DownloadTargets
 derive instance newtypeDownloadTargets :: Newtype DownloadTargets _
+
 type FilePath = String
 newtype Url = Url String
 derive instance newtypeUrl :: Newtype Url _
 derive instance genericUrl :: Generic Url _
-instance decodeUrl :: Decode Url where
-  decode = genericDecode $ defaultOptions {unwrapSingleConstructors = true}
+derive newtype instance readForeignURL :: ReadForeign Url
 
 type HtmlBody = String
 
@@ -60,8 +63,7 @@ newtype Config = Config
   , blacklist :: BannedWords
   }
 derive instance genericConfig :: Generic Config _
-instance decodeConfig :: Decode Config where
-  decode = genericDecode $ defaultOptions {unwrapSingleConstructors = true}
+derive newtype instance readForeignConfig :: ReadForeign Config
 
 type P a = Either ParseError a
 
@@ -99,21 +101,7 @@ isDownloaded :: DownloadedFiles -> File -> Boolean
 isDownloaded downloadedFiles file =
   any (contains (Pattern file)) downloadedFiles
 
-getConfig :: forall a e.
-  Decode a
-  => Aff
-       ( fs :: FS
-       | e
-       )
-       (F a)
-getConfig = decodeJSON <$> readTextFile UTF8 "./config.json"
-
-getDownloadedFiles :: forall e.
-  Aff
-    ( fs :: FS
-    | e
-    )
-    (Array FilePath)
+getDownloadedFiles :: Aff (Array FilePath)
 getDownloadedFiles =
   filter (contains $ Pattern "torrent")
   <$> readdir downloadsPath
@@ -149,45 +137,20 @@ scrapeHtml text = do
       pure $ href
     match (Attribute (Name name) _) = name == "href"
 
-getFetchedTargets :: forall e.
-  Url ->
-  Aff (http :: HTTP | e) (P FetchedTargets)
+getFetchedTargets :: Url -> Aff (P FetchedTargets)
 getFetchedTargets (Url url) = do
-  res <- text =<< fetch url defaultFetchOptions
+  res <- M.text =<< fetch (M.URL url) M.defaultFetchOptions
   pure $ FetchedTargets <$> scrapeHtml res
 
-type MyEffects e =
-  ( fs :: FS
-  , http :: HTTP
-  , console :: CONSOLE
-  , cp :: CHILD_PROCESS
-  | e
-  )
-
-curl :: forall e.
-  String
-  -> String
-  -> Aff
-      ( cp :: CHILD_PROCESS
-      | e
-      )
-      Unit
+curl :: String -> String -> Aff Unit
 curl url path = do
-  cp <- liftEff $ spawn "curl" [url, "-o", path] defaultSpawnOptions
+  cp <- liftEffect $ spawn "curl" [url, "-o", path] defaultSpawnOptions
   makeAff \cb -> do
     onError cp (cb <<< Left <<< Exc.error <<< unsafeStringify)
     onClose cp (cb <<< Right <<< const unit)
     pure mempty
 
-downloadTarget :: forall e.
-  Url
-  -> Target
-  -> Aff
-       ( cp :: CHILD_PROCESS
-       , console :: CONSOLE
-       | e
-       )
-       Unit
+downloadTarget :: Url -> Target -> Aff Unit
 downloadTarget (Url baseUrl) {url, name} = do
   _ <- curl targetUrl path
   log $ "downloaded " <> path
@@ -198,16 +161,7 @@ downloadTarget (Url baseUrl) {url, name} = do
       <> "/torrent"
     path = concat [downloadsPath, name <> ".torrent"]
 
-scrape :: forall e.
-  BannedWords
-  -> DownloadedFiles
-  -> Url
-  -> Aff
-      ( http :: HTTP
-      , console :: CONSOLE
-      | e
-      )
-      DownloadTargets
+scrape :: BannedWords -> DownloadedFiles -> Url -> Aff DownloadTargets
 scrape blacklist files url = getFetchedTargets url >>= case _ of
   Right xs -> do
     pure $ getDownloadTargets blacklist files xs
@@ -215,13 +169,10 @@ scrape blacklist files url = getFetchedTargets url >>= case _ of
     error $ "error from parsing html: " <> show e
     pure mempty
 
-main :: forall e.
-  Eff
-    (MyEffects (exception :: EXCEPTION | e))
-    Unit
+main :: Effect Unit
 main = launchAff_ $ do
-  config <- getConfig
-  case runExcept config of
+  config <- readJSON <$> readTextFile UTF8 "./config.json"
+  case config of
     Right (Config {urls, baseUrl, blacklist}) -> do
       files <- getDownloadedFiles
       ys <- foldMap (scrape blacklist files) urls

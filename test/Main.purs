@@ -1,23 +1,14 @@
 module Test.Main where
 
 import Prelude
-import Control.Monad.Aff.AVar (AVAR)
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE)
+
+import Effect (Effect)
 import Main (isDownloaded, isBlacklisted, isProperName)
 import Test.Unit (suite, test)
 import Test.Unit.Assert (assert)
-import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
 
-main :: forall e.
-  Eff
-    ( console :: CONSOLE
-    , testOutput :: TESTOUTPUT
-    , avar :: AVAR
-    | e
-    )
-    Unit
+main :: Effect Unit
 main = runTest do
   suite "isProperName" do
     test "make sure it finds the proper name" do

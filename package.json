@@ -12,6 +12,6 @@
   "license": "MIT",
   "dependencies": {
     "he": "^1.1.1",
-    "node-fetch": "^1.7.1"
+    "node-fetch": "^2.1.2"
   }
 }

@@ -4,16 +4,17 @@ let
   easy-ps = import (pkgs.fetchFromGitHub {
     owner = "justinwoo";
     repo = "easy-purescript-nix";
-    rev = "45050a69fc60b9e7259053a9d68d42a0e47dbf33";
-    sha256 = "1ajnsiclzv4xcjd6dn6p8bwqmyjib7rjrya0m57gj1dwkzn9z3lk";
+    rev = "50f85a34f665d1d328589a9a06c92282f1c930ea";
+    sha256 = "1aidjwh030wfswb227zi751bf0zbpv88mz9d035c59z26akhvidg";
   });
+
 in pkgs.stdenv.mkDerivation {
   name = "easy-purescript";
-  src = ./.;
 
-  buildInputs = [
+  buildInputs = easy-ps.buildInputs ++ [
     easy-ps.inputs.purs
     easy-ps.inputs.purp
     easy-ps.inputs.psc-package-simple
+    easy-ps.inputs.psc-package2nix
   ];
 }

@@ -1,7 +1,7 @@
 {
     "name": "torscraper",
-    "set": "110618",
-    "source": "https://github.com/justinwoo/package-sets-ex.git",
+    "set": "30112018",
+    "source": "https://github.com/justinwoo/spacchetti.git",
     "depends": [
       "prelude",
       "aff",

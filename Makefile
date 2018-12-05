@@ -8,7 +8,10 @@ nix:
 
 install:
 	npm install
-	psc-package install
+	nix-shell install-deps.nix --run "echo installation complete"
+
+purs-deps:
+	psc-package2nix
 
 build:
 	purp bundle

@@ -1,7 +1,7 @@
 torscraper
 ==========
 
-simple stupid scraper for torrents written in purescript and node
+simple stupid scraper for torrents
 
 ## Usage
 
@@ -9,10 +9,8 @@ Requires a `config.json` with this schema:
 
 ```json
 {
-  "url": "urlForSearchResults",
-  "selector": ".whateverClassName a",
-  "blacklist": [
-    "Substring of title you don't want to download"
-  ]
+  "urls": ["https://something/?something"],
+  "baseUrl": "https://something",
+  "blacklist": ["unwanted", "words"]
 }
 ```

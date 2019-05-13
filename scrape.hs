@@ -100,7 +100,7 @@ getDownloads (Config _ (BaseUrl baseUrl) _) (Target (Title title) (Url url')) = 
 
 downloadTarget :: Download -> IO ()
 downloadTarget (Download (DownloadPath path) (Url url)) = do
-  _ <- readBash $ "curl '" <> url <> "' -o '" <> path <> "'"
+  _ <- readBash $ "curl '" <> url <> "' -o \"" <> path <> "\""
   putStrLn $ "downloaded " <> path
 
 main :: IO ()

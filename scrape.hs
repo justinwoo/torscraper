@@ -90,7 +90,8 @@ newtype DownloadPath = DownloadPath String
 getDownloads :: Config -> Target -> IO (Maybe Download)
 getDownloads (Config _ (BaseUrl baseUrl) _) (Target (Title title) (Url url')) = do
   exists <- Dir.doesPathExist path
-  return $ if exists
+  exists2 <- Dir.doesPathExist $ path <> ".added"
+  return $ if exists || exists2
     then Nothing
     else do
       Just $ Download (DownloadPath path) (Url url)

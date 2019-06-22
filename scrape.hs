@@ -1,4 +1,5 @@
 #!/usr/bin/env runghc
+module Main where
 
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -75,6 +76,18 @@ readTarget s
     = Just $ Target (Title title) (Url href)
 readTarget _ = Nothing
 
+containsNumbers :: Target -> Bool
+containsNumbers (Target (Title title) _) = innerSearch title
+  where
+    numbers = ['0','1','2','3','4','5','6','7','8','9']
+    innerSearch str = case str of
+      '-' : ' ' : a : b : _
+        | elem a numbers
+        , elem b numbers
+        -> True
+      _ : rest -> innerSearch rest
+      [] -> False
+
 isNotBlacklisted :: Config -> Target -> Bool
 isNotBlacklisted (Config _ _ blacklist) (Target (Title title) _) =
   all noMatches blacklist
@@ -108,7 +121,12 @@ main :: IO ()
 main = do
   config <- readConfig
   allTargets <- getTargets config
-  let allowed = List.filter (isNotBlacklisted config) allTargets
+
+  let
+    allowed
+      = List.filter (isNotBlacklisted config)
+      . List.filter containsNumbers
+      $ allTargets
   targets <- Maybe.catMaybes <$> traverse (getDownloads config) allowed
   case targets of
     [] -> putStrLn "nothing new to download"

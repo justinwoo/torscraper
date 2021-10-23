@@ -1,0 +1,11 @@
+{
+  "name": "torscraper",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:justinwoo/torscraper.git",
+  "license": "MIT",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.10",
+    "prettier": "^2.4.1"
+  }
+}

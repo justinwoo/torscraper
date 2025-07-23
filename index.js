@@ -55,21 +55,47 @@ function test_fetch() {
 }
 
 function download(baseUrl, link) {
-  const joined = path.join(
-    baseUrl,
-    link.href.replace("view", "download"),
-  )
-  const url = `${joined}.torrent`
+  const joined = path.join(baseUrl, link.href.replace("view", "download"));
+  const url = `${joined}.torrent`;
   const filepath = path.join("./downloads", `${link.title}.torrent`);
 
-  const result = cp.spawnSync("curl", ["-L", url, "-o", filepath]);
+  const result = cp.spawnSync("curl", [
+    "-L",
+    url,
+    "-o",
+    filepath,
+    "--fail",
+    "--silent",
+  ]);
+
   if (result.error) {
-    console.log(`failed to download ${url}:`);
-    console.log(result.error);
-    process.exit(1);
-  } else {
-    console.log(`downloaded ${filepath}`);
+    console.log(`failed to download ${url}: ${result.error}`);
+    if (fs.existsSync(filepath)) {
+      fs.unlinkSync(filepath);
+    }
+    return false;
   }
+
+  if (result.status !== 0) {
+    console.log(
+      `failed to download ${url}: HTTP error (status ${result.status})`
+    );
+    if (fs.existsSync(filepath)) {
+      fs.unlinkSync(filepath);
+    }
+    return false;
+  }
+
+  if (!fs.existsSync(filepath) || fs.statSync(filepath).size === 0) {
+    console.log(`downloaded file is empty or missing: ${filepath}`);
+    if (fs.existsSync(filepath)) {
+      fs.unlinkSync(filepath);
+    }
+    return false;
+  }
+
+  console.log(`downloaded ${filepath} (${fs.statSync(filepath).size} bytes)`);
+  return true;
 }
 
 function mkTestExists() {
@@ -84,7 +110,30 @@ function mkTestExists() {
   return exists;
 }
 
+function cleanupZeroByte() {
+  const existing = fs.readdirSync("./downloads");
+  let cleaned = 0;
+
+  existing.forEach((filename) => {
+    const filepath = path.join("./downloads", filename);
+    if (filename.endsWith(".torrent") && !filename.endsWith(".torrent.added")) {
+      const stats = fs.statSync(filepath);
+      if (stats.size === 0) {
+        console.log(`removing 0-byte file: ${filename}`);
+        fs.unlinkSync(filepath);
+        cleaned++;
+      }
+    }
+  });
+
+  if (cleaned > 0) {
+    console.log(`cleaned up ${cleaned} empty torrent files`);
+  }
+}
+
 function main() {
+  cleanupZeroByte();
+
   const urls = config.urls;
   const htmls = [];
   urls.map((url) => {
@@ -119,9 +168,15 @@ function main() {
   if (filtered.length == 0) {
     console.log("nothing new to download");
   } else {
-    filtered.map((link) => {
-      download(config.baseUrl, link);
+    let successCount = 0;
+    filtered.forEach((link) => {
+      if (download(config.baseUrl, link)) {
+        successCount++;
+      }
     });
+    console.log(
+      `successfully downloaded ${successCount}/${filtered.length} torrents`
+    );
   }
 }
 

@@ -86,12 +86,26 @@ function download(baseUrl, link) {
     return false;
   }
 
-  if (!fs.existsSync(filepath) || fs.statSync(filepath).size === 0) {
-    console.log(`downloaded file is empty or missing: ${filepath}`);
-    if (fs.existsSync(filepath)) {
-      fs.unlinkSync(filepath);
-    }
+  const addedFilepath = `${filepath}.added`;
+  const fileExists = fs.existsSync(filepath);
+  const addedExists = fs.existsSync(addedFilepath);
+
+  if (!fileExists && !addedExists) {
+    console.log(`downloaded file is missing: ${filepath}`);
     return false;
+  }
+
+  if (fileExists && fs.statSync(filepath).size === 0) {
+    console.log(`downloaded file is empty: ${filepath}`);
+    fs.unlinkSync(filepath);
+    return false;
+  }
+
+  if (addedExists) {
+    console.log(
+      `downloaded ${filepath}`
+    );
+    return true;
   }
 
   console.log(`downloaded ${filepath} (${fs.statSync(filepath).size} bytes)`);

@@ -55,10 +55,13 @@ function test_fetch() {
 }
 
 function download(baseUrl, link) {
-  const joined = path.join(baseUrl, link.href.replace("view", "download"));
-  const url = `${joined}.torrent`;
+  const downloadPath = link.href.replace("view", "download");
+  const url = `${baseUrl}${downloadPath}.torrent`;
 
-  // Validate URL format
+  if (!url.startsWith("https://")) {
+    return false;
+  }
+
   try {
     const urlObj = new URL(url);
     if (!urlObj.protocol || !urlObj.hostname) {

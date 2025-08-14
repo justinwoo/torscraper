@@ -57,6 +57,17 @@ function test_fetch() {
 function download(baseUrl, link) {
   const joined = path.join(baseUrl, link.href.replace("view", "download"));
   const url = `${joined}.torrent`;
+
+  // Validate URL format
+  try {
+    const urlObj = new URL(url);
+    if (!urlObj.protocol || !urlObj.hostname) {
+      return false;
+    }
+  } catch (e) {
+    return false;
+  }
+
   const filepath = path.join("./downloads", `${link.title}.torrent`);
 
   const result = cp.spawnSync("curl", [
@@ -102,9 +113,7 @@ function download(baseUrl, link) {
   }
 
   if (addedExists) {
-    console.log(
-      `downloaded ${filepath}`
-    );
+    console.log(`downloaded ${filepath}`);
     return true;
   }
 

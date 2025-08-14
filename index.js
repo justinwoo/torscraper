@@ -56,7 +56,8 @@ function test_fetch() {
 
 function download(baseUrl, link) {
   const downloadPath = link.href.replace("view", "download");
-  const url = `${baseUrl}${downloadPath}.torrent`;
+  const base = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const url = `${base}${downloadPath}.torrent`;
 
   if (!url.startsWith("https://")) {
     return false;
